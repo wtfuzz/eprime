@@ -6,7 +6,9 @@
 
 #include <e-hal.h>
 
-#define MAX_TESTS = 1000000;
+// Default maximum number of primality tests to run per core
+// This is used if a limit it not provided as a runtime argument in argv[1]
+#define DEFAULT_MAX_TESTS 1000000
 
 int main(int argc, char *argv[])
 {
@@ -14,25 +16,30 @@ int main(int argc, char *argv[])
 	e_platform_t platform;
 	e_epiphany_t dev;
 
-	uint64_t max_tests = 1000000;
+	uint64_t max_tests = DEFAULT_MAX_TESTS;
 
 	if(argc > 1)
 	{
 		max_tests = strtoull(argv[1], NULL, 10);
 	}
 
-	// initialize system, read platform params from
-	// default HDF. Then, reset the platform and
-	// get the actual system parameters.
+	// Initialize the Epiphany HAL and connect to the chip
 	e_init(NULL);
+
+	// Reset the system
 	e_reset_system();
+
+	// Get the platform information
 	e_get_platform_info(&platform);
-	
+
+	// Create a workgroup using all of the cores	
 	e_open(&dev, 0, 0, platform.rows, platform.cols);
 	e_reset_group(&dev);
 
+	// Load the device code into each core of the chip, and don't start it yet
 	e_load_group("e_prime.srec", &dev, 0, 0, platform.rows, platform.cols, E_FALSE);
 
+	// Set the maximum per core test value on each core at address 0x7020
 	for(row=0;row<platform.rows;row++)
 	{
 		for(col=0;col<platform.cols;col++)
@@ -40,7 +47,8 @@ int main(int argc, char *argv[])
 			e_write(&dev, row, col, 0x7020, &max_tests, sizeof(uint64_t));
 		}
 	}
-	
+
+	// Start all of the cores
 	e_start_group(&dev);
 
 	uint64_t sum = 0;
@@ -51,10 +59,9 @@ int main(int argc, char *argv[])
 	{
 		sum = 0;
 		total_primes = 0;
-		//fprintf(stderr, "Sleeping 5 seconds\n");
-		//sleep(1);
 		usleep(100000);
 
+		// Read the stats values from each core
 		for(row=0;row<platform.rows;row++)
 		{
 			for(col=0;col<platform.cols;col++)
@@ -64,17 +71,19 @@ int main(int argc, char *argv[])
 				uint64_t sq;
 				uint64_t primes;
 		
-				// Get the number of primality tests from this core
+				// Get the number of primality tests performed by this core
 				if(e_read(&dev, row, col, 0x7000, &count, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
+				// Get the number being tested by the core
 				if(e_read(&dev, row, col, 0x7008, &current, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
+				// Get the calculated sqrt for the current number from the core (race here as the number may have changed since the last e_read()
 				if(e_read(&dev, row, col, 0x7018, &sq, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
-				// Get the number of primes found from this core
+				// Get the number of primes found by this core
 				if(e_read(&dev, row, col, 0x7010, &primes, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
@@ -83,10 +92,10 @@ int main(int argc, char *argv[])
 				total_primes += primes;
 			}
 		}
+
+		// Print aggregate core stats
 		printf("Total tests: %" PRIu64 " Found primes: %" PRIu64 "\n", sum, total_primes);
-
 		printf("Iterations/sec: %lf\n", (double)(sum - last) / 0.1);
-
 		last = sum;
 	}
 

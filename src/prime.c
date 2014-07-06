@@ -51,32 +51,41 @@ int main(int argc, char *argv[])
 	{
 		sum = 0;
 		total_primes = 0;
-		fprintf(stderr, "Sleeping 5 seconds\n");
-		sleep(5);
+		//fprintf(stderr, "Sleeping 5 seconds\n");
+		//sleep(1);
+		usleep(100000);
 
 		for(row=0;row<platform.rows;row++)
 		{
 			for(col=0;col<platform.cols;col++)
 			{
 				uint64_t count;
+				uint64_t current;
+				uint64_t sq;
 				uint64_t primes;
 		
 				// Get the number of primality tests from this core
 				if(e_read(&dev, row, col, 0x7000, &count, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
+				if(e_read(&dev, row, col, 0x7008, &current, sizeof(uint64_t)) != sizeof(uint64_t))
+					fprintf(stderr, "Failed to read\n");
+
+				if(e_read(&dev, row, col, 0x7018, &sq, sizeof(uint64_t)) != sizeof(uint64_t))
+					fprintf(stderr, "Failed to read\n");
+
 				// Get the number of primes found from this core
 				if(e_read(&dev, row, col, 0x7010, &primes, sizeof(uint64_t)) != sizeof(uint64_t))
 					fprintf(stderr, "Failed to read\n");
 
-				fprintf(stderr, "Core (%02d,%02d) Tests: %" PRIu64 " Primes: %" PRIu64 "\n", row, col, count, primes);
+				fprintf(stderr, "Core (%02d,%02d) Tests: %" PRIu64 " Primes: %" PRIu64 " Current: %" PRIu64 " SQ: %" PRIu64 "\n", row, col, count, primes, current, sq);
 				sum += count;
 				total_primes += primes;
 			}
 		}
 		printf("Total tests: %" PRIu64 " Found primes: %" PRIu64 "\n", sum, total_primes);
 
-		printf("Iterations/sec: %" PRIu64 "\n", (sum - last) / 5);
+		printf("Iterations/sec: %lf\n", (double)(sum - last) / 0.1);
 
 		last = sum;
 	}

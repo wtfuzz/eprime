@@ -8,6 +8,7 @@
 volatile unsigned long long *count = (void *)0x7000;
 volatile unsigned long long *num = (void *)0x7008;
 volatile unsigned long long *primes = (void *)0x7010;
+volatile unsigned long long *sq = (void *)0x7018;
 volatile unsigned long long *max_tests = (void *)0x7020;
 
 int is_prime(unsigned long number);
@@ -42,6 +43,8 @@ int main(void)
 		// Core (0,1) started with 5 on the first iteration, and next test 37
 		// etc
 		number += (2*16);
+
+		*sq = sqrt(number);
 
 		*num = number;
 

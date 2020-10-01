@@ -1,36 +1,50 @@
 # Parallella Prime Counter
 
+
 This is a simple naive primality test on Epiphany multicore CPU. I started this as my first Epiphany/Parallella project to familiarize myself with the platform.
+
 
 Each core will perform a primality test on odd numbers from [3..(max_tests*16)]. The max_tests parameter is passed as a command line argument to the host code and can be changed in run.sh
 
+
 The device code in e_prime.c will initialize each core in the workgroup with an odd number starting from 3 in the sequence [3,5,7,9..33]. Each core will then increment the number by (2*workgroup size), so the second iteration the cores will be working on [35,37,39...].
+
 
 The prime test is in isprime.c and does a naive test of divisors in [3..sqrt(number)] using modulo to check for a remainder.
 
+
 ## Compiling
+
 ```sh
 ./build.sh
 ```
 
 ## Executing
+
 ```sh
 ./run.sh
 ```
 
+
 ## Sample Output
+
 
 Stats are read by the host code every 100ms and printed to stderr
 
+
 #### Per core stats
+
 * Core is the core coordinates in the workgroup
 * Tests is the total number of primality tests executed by this core
 * Primes is the total count of primes found by this core
 * Current is the current (approx) number being tested by the core
 * SQ is the (approx) square root of the number being testsed by the core (debugging)
 
+
 #### Aggregate stats
+
 At the end of printing per-core stats, the total aggreate is displayed, and the number of iterations (primality tests)/second.
+
 
 ```sh
 Core (00,00) Tests: 31524 Primes: 4992 Current: 1008771 SQ: 1004
